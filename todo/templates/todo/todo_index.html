@@ -71,7 +71,7 @@
    <ul class="todoList">
         <li v-for = "(todo, index) in todoList">
             <span>[[ todo.name ]]:: [[ todo.todo ]]</span>
-            <span class="removeBtn" v-on:click = "remove_todo(index)">x</span>
+            <span class="removeBtn" v-on:click = "remove_todo(todo, index)">x</span>
         </li>
     </ul>
 </div>
@@ -81,6 +81,9 @@
 <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
+    axios.defaults.xsrfCookieName = 'csrftoken';
+    axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+
     var vm = new Vue({
         delimiters:['[[', ']]'],
         el: '#app',
@@ -88,7 +91,6 @@
             name: '',
             todo: '',
             todoList: [
-                {name: '박보검', todo: '쌉가능'},
             ],
         },
         created: function () {
@@ -100,7 +102,6 @@
                 console.log("fetch_all_todo()...");
 
                 var vm = this;
-
                 axios.get('/api/todo/list/')
                     .then(function(res){
                         console.log("GET RES", res);
@@ -112,15 +113,36 @@
             },
             add_todo: function() {
                 console.log("add_todo()...");
-                if( this.name == '') this.name= '홍길동';
                 if( this.todo == '') return;
+                if( this.name == '') this.name= '홍길동';
 
-                this.todoList.push({name: this.name, todo: this.todo});
+                var vm = this;
+                var postData = {name:this.name, todo:this.todo};
+                axios.post('/api/todo/create/', postData)
+                    .then(function(res){
+                        console.log("POST RES", res)
+                        vm.todoList.push({id: res.data.id, name: res.data.name, todo: res.data.todo});
+
+                    })
+                    .catch(function(err){
+                        console.log("POST ERR", err)
+                    })
+
                 this.name = this.todo = '';
             },
-            remove_todo: function(index){
-              console.log("remove_todo()...", index);
-              this.todoList.splice(index, 1);
+            remove_todo: function(todo, index){
+                console.log("remove_todo()...", index);
+                if(confirm("Really delete ?") == false) return;
+
+                var vm = this;
+                axios.delete('/api/todo/'+ todo.id +'/delete/')
+                    .then(function(res){
+                        console.log("DELETE RES", res);
+                        vm.todoList.splice(index, 1);
+                    })
+                    .catch(function (err){
+                        console.log("DELETE ERR", err);
+                    })
             },
         },
     })
